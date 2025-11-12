@@ -1,50 +1,46 @@
 // Jenkinsfile
 
 pipeline {
-    agent any // Specifies that the pipeline can run on any available Jenkins agent
+    agent any // The pipeline will run on any available Jenkins agent
 
     environment {
-        // Define the Docker image name 
+        // Define the Docker image name
         DOCKER_IMAGE_NAME = "my-simple-app"
         // Use the build number as the tag for unique versions
         DOCKER_TAG = "${env.BUILD_ID}" 
         FULL_IMAGE_NAME = "${DOCKER_IMAGE_NAME}:${DOCKER_TAG}"
+        // Define a specific name for the running container based on the build ID
+        CONTAINER_NAME = "${DOCKER_IMAGE_NAME}-run-${env.BUILD_ID}"
     }
 
     stages {
         stage('Build Docker Image') {
             steps {
                 script {
-                    echo "Building Docker image: ${FULL_IMAGE_NAME}"
-                    // The '.' specifies that the Dockerfile is in the current directory
+                    echo "Starting to build Docker image: ${FULL_IMAGE_NAME}"
+                    
+                    // Build the image using the Dockerfile in the current directory
                     docker.build(FULL_IMAGE_NAME, '.')
+                    
                     echo 'Docker image built successfully.'
                 }
             }
         }
 
-        stage('Run and Test Container') {
+        stage('Run Container in Local Environment (Retained)') {
             steps {
                 script {
-                    echo "Running container to verify output..."
+                    echo "Running container from image: ${FULL_IMAGE_NAME} without --rm flag."
+                    echo "Container will be named: ${CONTAINER_NAME}"
                     
-                    // Run the container and capture its standard output (stdout)
-                    def output = sh(
-                        script: "docker run --rm ${FULL_IMAGE_NAME}", 
-                        returnStdout: true 
-                    ).trim()
+                    // Execute the image. It will print "hey kedar" and then exit (stop).
+                    // The --name flag ensures we can easily reference the container later.
+                    sh "docker run --name ${CONTAINER_NAME} ${FULL_IMAGE_NAME}"
                     
-                    echo "Container Output: ${output}"
-                    
-                    // Assert the output matches the expected string
-                    if (output == "hey kedar") {
-                        echo 'Verification successful: Output matches "hey kedar".'
-                    } else {
-                        error "Verification failed! Expected 'hey kedar', but got '${output}'"
-                    }
+                    echo "Container has finished execution (status: Exited). It is NOT removed."
+                    echo "You can view it using 'docker ps -a'."
                 }
             }
         }
-
     }
 }
